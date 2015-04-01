@@ -11,7 +11,7 @@
 'use strict';
 
 angular.module('angular-advanced-searchbox', [])
-    .directive('nitAdvancedSearchbox', function() {
+    .directive('nitAdvancedSearchbox', function($timeout, $filter) {
         return {
             restrict: 'E',
             scope: {
@@ -19,22 +19,30 @@ angular.module('angular-advanced-searchbox', [])
                 parameters: '='
             },
             templateUrl: 'angular-advanced-searchbox.html',
-            controller: [
-                '$scope', '$attrs', '$element', '$timeout', '$filter',
-                function ($scope, $attrs, $element, $timeout, $filter) {
+            link: function ($scope, $attrs) {
 
                     $scope.placeholder = $attrs.placeholder || 'Search ...';
                     $scope.searchParams = [];
                     $scope.searchQuery = '';
                     $scope.setSearchFocus = false;
 
-                    $scope.$watch('searchQuery', function () {
-                        updateModel();
-                    });
+                    // deep watch group
+                    $scope.$watch(function(){
+                        return ['searchQuery','searchParams'].map(angular.bind($scope, $scope.$eval));
+                    }, function(){
 
-                    $scope.$watch('searchParams', function () {
-                        updateModel();
-                    }, true);
+                        angular.forEach($scope.model, function(param, key){
+                            delete $scope.model[key];
+                        })
+
+                        $scope.model.query = $scope.searchQuery;
+
+                        angular.forEach($scope.searchParams, function (param) {
+                            if (param.value !== undefined && param.value.length > 0)
+                                $scope.model[param.key] = param.value;
+                        });
+
+                    },true);
 
                     $scope.enterEditMode = function(index) {
                         if (index === undefined)
@@ -166,28 +174,11 @@ angular.module('angular-advanced-searchbox', [])
                     }
 
                     if ($scope.model === undefined) {
-                        $scope.model = {};
+                       $scope.model = {};
                     } else {
                         restoreModel();
                     }
 
-                    var searchThrottleTimer;
-                    function updateModel() {
-                        if (searchThrottleTimer)
-                            $timeout.cancel(searchThrottleTimer);
-
-                        searchThrottleTimer = $timeout(function () {
-                            $scope.model = {};
-
-                            if ($scope.searchQuery.length > 0)
-                                $scope.model.query = $scope.searchQuery;
-
-                            angular.forEach($scope.searchParams, function (param) {
-                                if (param.value !== undefined && param.value.length > 0)
-                                    $scope.model[param.key] = param.value;
-                            });
-                        }, 500);
-                    }
 
                     function getCurrentCaretPosition(input) {
                         if (!input)
@@ -208,7 +199,6 @@ angular.module('angular-advanced-searchbox', [])
                         return 0;
                     }
                 }
-            ]
         };
     })
     .directive('nitSetFocus', [
@@ -274,3 +264,11 @@ angular.module('angular-advanced-searchbox', [])
         }
     ]);
 })();
+angular.module('angular-advanced-searchbox').run(['$templateCache', function($templateCache) {
+  'use strict';
+
+  $templateCache.put('angular-advanced-searchbox.html',
+    "<div class=advancedSearchBox ng-class={active:focus} ng-init=\"focus = false\"><span ng-show=\"searchParams.length < 1 && searchQuery.length === 0\" class=\"search-icon glyphicon glyphicon-search\"></span> <a ng-href=\"\" ng-show=\"searchParams.length > 0 || searchQuery.length > 0\" ng-click=removeAll() role=button><span class=\"remove-all-icon glyphicon glyphicon-trash\"></span></a><div><div class=search-parameter ng-repeat=\"searchParam in searchParams\"><a ng-href=\"\" ng-click=removeSearchParam($index) role=button><span class=\"remove glyphicon glyphicon-trash\"></span></a><div class=key>{{searchParam.name}}:</div><div class=value><span ng-show=!searchParam.editMode ng-click=enterEditMode($index)>{{searchParam.value}}</span> <input name=value nit-auto-size-input nit-set-focus=searchParam.editMode ng-keydown=\"keydown($event, $index)\" ng-blur=leaveEditMode($index) ng-show=searchParam.editMode ng-model=searchParam.value placeholder=\"{{searchParam.placeholder}}\"></div></div><input name=searchbox class=search-parameter-input nit-set-focus=setSearchFocus ng-keydown=keydown($event) placeholder={{placeholder}} ng-focus=\"focus = true\" ng-blur=\"focus = false\" typeahead-on-select=\"typeaheadOnSelect($item, $model, $label)\" typeahead=\"parameter as parameter.name for parameter in parameters | filter:{name:$viewValue} | limitTo:8\" ng-model=\"searchQuery\"></div><div class=search-parameter-suggestions ng-show=\"parameters && focus\"><span class=title>Parameter Suggestions:</span> <span class=search-parameter ng-repeat=\"param in parameters | limitTo:8\" ng-mousedown=addSearchParam(param)>{{param.name}}</span></div></div>"
+  );
+
+}]);
