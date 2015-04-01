@@ -18,7 +18,6 @@ angular.module('angular-advanced-searchbox', [])
                 model: '=ngModel',
                 parameters: '='
             },
-            replace: true,
             templateUrl: 'angular-advanced-searchbox.html',
             controller: [
                 '$scope', '$attrs', '$element', '$timeout', '$filter',
