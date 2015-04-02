@@ -33,7 +33,7 @@ angular.module('angular-advanced-searchbox', [])
 
                         angular.forEach($scope.model, function(param, key){
                             delete $scope.model[key];
-                        })
+                        });
 
                         $scope.model.query = $scope.searchQuery;
 

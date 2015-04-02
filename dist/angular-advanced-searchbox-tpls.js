@@ -11,31 +11,38 @@
 'use strict';
 
 angular.module('angular-advanced-searchbox', [])
-    .directive('nitAdvancedSearchbox', function() {
+    .directive('nitAdvancedSearchbox', function($timeout, $filter) {
         return {
             restrict: 'E',
             scope: {
                 model: '=ngModel',
                 parameters: '='
             },
-            replace: true,
             templateUrl: 'angular-advanced-searchbox.html',
-            controller: [
-                '$scope', '$attrs', '$element', '$timeout', '$filter',
-                function ($scope, $attrs, $element, $timeout, $filter) {
+            link: function ($scope, $attrs) {
 
                     $scope.placeholder = $attrs.placeholder || 'Search ...';
                     $scope.searchParams = [];
                     $scope.searchQuery = '';
                     $scope.setSearchFocus = false;
 
-                    $scope.$watch('searchQuery', function () {
-                        updateModel();
-                    });
+                    // deep watch group
+                    $scope.$watch(function(){
+                        return ['searchQuery','searchParams'].map(angular.bind($scope, $scope.$eval));
+                    }, function(){
 
-                    $scope.$watch('searchParams', function () {
-                        updateModel();
-                    }, true);
+                        angular.forEach($scope.model, function(param, key){
+                            delete $scope.model[key];
+                        });
+
+                        $scope.model.query = $scope.searchQuery;
+
+                        angular.forEach($scope.searchParams, function (param) {
+                            if (param.value !== undefined && param.value.length > 0)
+                                $scope.model[param.key] = param.value;
+                        });
+
+                    },true);
 
                     $scope.enterEditMode = function(index) {
                         if (index === undefined)
@@ -167,28 +174,11 @@ angular.module('angular-advanced-searchbox', [])
                     }
 
                     if ($scope.model === undefined) {
-                        $scope.model = {};
+                       $scope.model = {};
                     } else {
                         restoreModel();
                     }
 
-                    var searchThrottleTimer;
-                    function updateModel() {
-                        if (searchThrottleTimer)
-                            $timeout.cancel(searchThrottleTimer);
-
-                        searchThrottleTimer = $timeout(function () {
-                            $scope.model = {};
-
-                            if ($scope.searchQuery.length > 0)
-                                $scope.model.query = $scope.searchQuery;
-
-                            angular.forEach($scope.searchParams, function (param) {
-                                if (param.value !== undefined && param.value.length > 0)
-                                    $scope.model[param.key] = param.value;
-                            });
-                        }, 500);
-                    }
 
                     function getCurrentCaretPosition(input) {
                         if (!input)
@@ -209,7 +199,6 @@ angular.module('angular-advanced-searchbox', [])
                         return 0;
                     }
                 }
-            ]
         };
     })
     .directive('nitSetFocus', [
@@ -275,6 +264,7 @@ angular.module('angular-advanced-searchbox', [])
         }
     ]);
 })();
+
 angular.module('angular-advanced-searchbox').run(['$templateCache', function($templateCache) {
   'use strict';
 
